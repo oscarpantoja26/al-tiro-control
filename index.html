@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0b3d2e">
+<meta name="theme-color" content="#0a1f44">
 <title>Al Tiro Control de Ventas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
@@ -13,22 +13,22 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f6f5;color:#16211c;min-height:100dvh;padding-bottom:env(safe-area-inset-bottom)}
-header{background:#0b3d2e;color:#fff;padding:18px 16px 14px;text-align:center}
+header{background:#0a1f44;color:#fff;padding:18px 16px 14px;text-align:center}
 header h1{font-size:22px;letter-spacing:.5px}
 header p{font-size:13px;opacity:.85;margin-top:2px}
 .wrap{max-width:520px;margin:0 auto;padding:14px}
 .card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.card h2{font-size:15px;margin-bottom:10px;color:#0b3d2e}
+.card h2{font-size:15px;margin-bottom:10px;color:#0a1f44}
 .totals{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.totals div{background:#eef4f1;border-radius:10px;padding:10px;text-align:center}
+.totals div{background:#eef1f8;border-radius:10px;padding:10px;text-align:center}
 .totals .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#5b6b63}
 .totals .val{font-size:20px;font-weight:700;margin-top:2px}
-.totals .neto .val{color:#0b3d2e}
+.totals .neto .val{color:#0a1f44}
 .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-button{font-family:inherit;border:0;border-radius:12px;padding:14px 8px;font-size:15px;font-weight:600;cursor:pointer;background:#0b3d2e;color:#fff;min-height:56px}
+button{font-family:inherit;border:0;border-radius:12px;padding:14px 8px;font-size:15px;font-weight:600;cursor:pointer;background:#0a1f44;color:#fff;min-height:56px}
 button:active{transform:scale(.98)}
 button.gasto{background:#8a5a12}
-button.sec{background:#eef4f1;color:#0b3d2e}
+button.sec{background:#eef1f8;color:#0a1f44}
 button:disabled{opacity:.5}
 .row{display:flex;gap:8px;margin-top:8px}
 .row input,.row select{flex:1;padding:12px;border:1px solid #ccd6d1;border-radius:10px;font-size:15px;min-width:0}
@@ -106,6 +106,8 @@ li .m{color:#5b6b63;font-size:12px}
 </div>
 <script>
 const KEY='altiro-control-v1';
+const RENT_MONTHLY=1400;
+const RENT_DAILY=RENT_MONTHLY/30;
 const PRICES=[
  {label:'Auto compacto Básico',amt:100},
  {label:'Auto compacto Completo',amt:150},
@@ -113,7 +115,7 @@ const PRICES=[
  {label:'Camioneta mediana Completo',amt:180},
  {label:'Camioneta grande Básico',amt:150},
  {label:'Camioneta grande Completo',amt:200},
- {label:'Moto',amt:100}
+ {label:"Moto",amt:50}
 ];
 function seed(){
  return {
@@ -190,16 +192,16 @@ function render(){
  ul.querySelectorAll('button[data-i]').forEach(b=>{ b.onclick=()=>{ moves.splice(parseInt(b.dataset.i),1); save(); render(); }; });
  document.getElementById('movEmpty').style.display=moves.length?'none':'block';
  const com=vend*data.commission;
- const neto=vend-com-gasto;
+ const neto=vend-com-gasto-RENT_DAILY;
  document.getElementById('tVend').textContent=fmt(vend);
  document.getElementById('tVeh').textContent=veh;
  document.getElementById('tCom').textContent='−'+fmt(com);
  document.getElementById('tNeto').textContent=fmt(neto);
- document.getElementById('tGasto').textContent=gasto?('Gastos del día: '+fmt(gasto)):'';
- let gv=0,gg=0;
- Object.values(data.days).forEach(ms=>{ ms.forEach(m=>{ if(m.type==='sale') gv+=m.amt; else gg+=m.amt; }); });
+ document.getElementById('tGasto').textContent=(gasto?('Gastos del día: '+fmt(gasto)+' · '):'')+'Renta del día: '+fmt(RENT_DAILY);
+ let gv=0,gg=0,gd=0;
+ Object.values(data.days).forEach(ms=>{ gd++; ms.forEach(m=>{ if(m.type==='sale') gv+=m.amt; else gg+=m.amt; }); });
  document.getElementById('gVend').textContent=fmt(gv);
- document.getElementById('gNeto').textContent=fmt(gv-gv*data.commission-gg);
+ document.getElementById('gNeto').textContent=fmt(gv-gv*data.commission-gg-gd*RENT_DAILY);
 }
 render();
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
