@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d2e">
+<title>Al Tiro Control de Ventas</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f6f5;color:#16211c;min-height:100dvh;padding-bottom:env(safe-area-inset-bottom)}
+header{background:#0b3d2e;color:#fff;padding:18px 16px 14px;text-align:center}
+header h1{font-size:22px;letter-spacing:.5px}
+header p{font-size:13px;opacity:.85;margin-top:2px}
+.wrap{max-width:520px;margin:0 auto;padding:14px}
+.card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.card h2{font-size:15px;margin-bottom:10px;color:#0b3d2e}
+.totals{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.totals div{background:#eef4f1;border-radius:10px;padding:10px;text-align:center}
+.totals .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#5b6b63}
+.totals .val{font-size:20px;font-weight:700;margin-top:2px}
+.totals .neto .val{color:#0b3d2e}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{font-family:inherit;border:0;border-radius:12px;padding:14px 8px;font-size:15px;font-weight:600;cursor:pointer;background:#0b3d2e;color:#fff;min-height:56px}
+button:active{transform:scale(.98)}
+button.gasto{background:#8a5a12}
+button.sec{background:#eef4f1;color:#0b3d2e}
+button:disabled{opacity:.5}
+.row{display:flex;gap:8px;margin-top:8px}
+.row input,.row select{flex:1;padding:12px;border:1px solid #ccd6d1;border-radius:10px;font-size:15px;min-width:0}
+ul{list-style:none}
+li{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #eef1ef;font-size:14px}
+li:last-child{border-bottom:0}
+li .m{color:#5b6b63;font-size:12px}
+.neg{color:#a33}
+.small{font-size:12px;color:#5b6b63}
+.daynav{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.daynav button{min-height:40px;padding:8px 12px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+<h1>AL TIRO CONTROL</h1>
+<p>Autolavado · Rioverde, S.L.P. · Mar–Dom 11 am a 6 pm</p>
+</header>
+<div class="wrap">
+<div class="card">
+<div class="daynav">
+<button class="sec" id="prevDay">◀ Día anterior</button>
+<strong id="dayLabel"></strong>
+<button class="sec" id="nextDay">Día siguiente ▶</button>
+</div>
+</div>
+<div class="card">
+<h2>Resumen del día</h2>
+<div class="totals">
+<div><div class="lbl">Vendido</div><div class="val" id="tVend">$0</div></div>
+<div><div class="lbl">Vehículos</div><div class="val" id="tVeh">0</div></div>
+<div><div class="lbl">Comisión empleado 33%</div><div class="val" id="tCom">$0</div></div>
+<div class="neto"><div class="lbl">Para ti</div><div class="val" id="tNeto">$0</div></div>
+</div>
+<p class="small" id="tGasto" style="margin-top:8px"></p>
+</div>
+<div class="card">
+<h2>Registrar lavado</h2>
+<div class="btns" id="washBtns"></div>
+<div class="row">
+<input type="number" id="customAmt" placeholder="Monto libre $" min="0" step="1" inputmode="numeric">
+<button class="sec" id="customBtn">Agregar</button>
+</div>
+</div>
+<div class="card">
+<h2>Registrar gasto</h2>
+<div class="row">
+<select id="expCat">
+<option>Gasolina</option>
+<option>Productos</option>
+<option>Renta</option>
+<option>Otro</option>
+</select>
+<input type="number" id="expAmt" placeholder="$" min="0" step="1" inputmode="numeric">
+<button class="gasto" id="expBtn">Agregar</button>
+</div>
+</div>
+<div class="card">
+<h2>Movimientos del día</h2>
+<ul id="movList"></ul>
+<p class="small" id="movEmpty">Sin movimientos todavía.</p>
+</div>
+<div class="card">
+<h2>Totales acumulados</h2>
+<div class="totals">
+<div><div class="lbl">Vendido total</div><div class="val" id="gVend">$0</div></div>
+<div><div class="lbl">Para ti total</div><div class="val" id="gNeto">$0</div></div>
+</div>
+<p class="small" style="margin-top:8px">Los datos se guardan en este navegador. Puedes respaldar con el botón de abajo.</p>
+<div class="row">
+<button class="sec" id="csvBtn">Descargar respaldo</button>
+<button class="sec" id="resetBtn">Reiniciar datos</button>
+</div>
+</div>
+</div>
+<script>
+const KEY='altiro-control-v1';
+const PRICES=[
+ {label:'Auto compacto Básico',amt:100},
+ {label:'Auto compacto Completo',amt:150},
+ {label:'Camioneta mediana Básico',amt:130},
+ {label:'Camioneta mediana Completo',amt:180},
+ {label:'Camioneta grande Básico',amt:150},
+ {label:'Camioneta grande Completo',amt:200},
+ {label:'Moto',amt:100}
+];
+function seed(){
+ return {
+  commission:0.33,
+  days:{
+   '2026-11-14':[
+    {type:'sale',label:'Camioneta grande Completo',amt:200},
+    {type:'sale',label:'Auto compacto Completo',amt:150},
+    {type:'sale',label:'Auto compacto Básico',amt:100},
+    {type:'sale',label:'Moto',amt:100},
+    {type:'sale',label:'Auto compacto Básico',amt:100}
+   ],
+   '2026-11-15':[
+    {type:'sale',label:'Auto compacto Completo',amt:150},
+    {type:'expense',label:'Gasolina',amt:50}
+   ]
+  }
+ };
+}
+let data;
+try{ data=JSON.parse(localStorage.getItem(KEY))||seed(); }catch(e){ data=seed(); }
+function save(){ localStorage.setItem(KEY,JSON.stringify(data)); }
+function fmt(n){ return '$'+Number(n).toFixed(2).replace(/\.00$/,''); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function shiftDay(s,n){ const d=new Date(s+'T12:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function prettyDay(s){ const d=new Date(s+'T12:00:00'); return d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'}); }
+let curDay=todayStr();
+if(!data.days[curDay]) data.days[curDay]=[];
+const washBtns=document.getElementById('washBtns');
+PRICES.forEach(p=>{
+ const b=document.createElement('button');
+ b.textContent=p.label+' $'+p.amt;
+ b.onclick=()=>{ addMove({type:'sale',label:p.label,amt:p.amt}); };
+ washBtns.appendChild(b);
+});
+function addMove(m){
+ if(!data.days[curDay]) data.days[curDay]=[];
+ data.days[curDay].push(m); save(); render();
+}
+document.getElementById('customBtn').onclick=()=>{
+ const v=parseFloat(document.getElementById('customAmt').value);
+ if(!v||v<=0) return;
+ addMove({type:'sale',label:'Monto libre',amt:v});
+ document.getElementById('customAmt').value='';
+};
+document.getElementById('expBtn').onclick=()=>{
+ const v=parseFloat(document.getElementById('expAmt').value);
+ if(!v||v<=0) return;
+ addMove({type:'expense',label:document.getElementById('expCat').value,amt:v});
+ document.getElementById('expAmt').value='';
+};
+document.getElementById('prevDay').onclick=()=>{ curDay=shiftDay(curDay,-1); if(!data.days[curDay]) data.days[curDay]=[]; render(); };
+document.getElementById('nextDay').onclick=()=>{ curDay=shiftDay(curDay,1); if(!data.days[curDay]) data.days[curDay]=[]; render(); };
+document.getElementById('resetBtn').onclick=()=>{
+ if(confirm('¿Borrar todos los datos guardados?')){ data=seed(); save(); curDay=todayStr(); render(); }
+};
+document.getElementById('csvBtn').onclick=()=>{
+ let rows=['fecha,tipo,concepto,monto'];
+ Object.keys(data.days).sort().forEach(d=>{ data.days[d].forEach(m=>{ rows.push(d+','+m.type+','+m.label+','+m.amt); }); });
+ const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='al-tiro-ventas.csv'; a.click();
+};
+function render(){
+ document.getElementById('dayLabel').textContent=prettyDay(curDay);
+ const moves=data.days[curDay]||[];
+ let vend=0,veh=0,gasto=0;
+ const ul=document.getElementById('movList'); ul.innerHTML='';
+ moves.forEach((m,i)=>{
+  if(m.type==='sale'){ vend+=m.amt; veh++; } else { gasto+=m.amt; }
+  const li=document.createElement('li');
+  li.innerHTML='<span>'+m.label+' <span class="m">'+(m.type==='sale'?'venta':'gasto')+'</span></span><span class="'+(m.type==='expense'?'neg':'')+'">'+(m.type==='expense'?'−':'')+fmt(m.amt)+' <button class="sec" style="min-height:28px;padding:4px 8px;font-size:12px" data-i="'+i+'">Borrar</button></span>';
+  ul.appendChild(li);
+ });
+ ul.querySelectorAll('button[data-i]').forEach(b=>{ b.onclick=()=>{ moves.splice(parseInt(b.dataset.i),1); save(); render(); }; });
+ document.getElementById('movEmpty').style.display=moves.length?'none':'block';
+ const com=vend*data.commission;
+ const neto=vend-com-gasto;
+ document.getElementById('tVend').textContent=fmt(vend);
+ document.getElementById('tVeh').textContent=veh;
+ document.getElementById('tCom').textContent='−'+fmt(com);
+ document.getElementById('tNeto').textContent=fmt(neto);
+ document.getElementById('tGasto').textContent=gasto?('Gastos del día: '+fmt(gasto)):'';
+ let gv=0,gg=0;
+ Object.values(data.days).forEach(ms=>{ ms.forEach(m=>{ if(m.type==='sale') gv+=m.amt; else gg+=m.amt; }); });
+ document.getElementById('gVend').textContent=fmt(gv);
+ document.getElementById('gNeto').textContent=fmt(gv-gv*data.commission-gg);
+}
+render();
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
