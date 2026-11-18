@@ -40,6 +40,14 @@ li .m{color:#5b6b63;font-size:12px}
 .small{font-size:12px;color:#5b6b63}
 .daynav{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .daynav button{min-height:40px;padding:8px 12px;font-size:13px}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.badge.pend{background:#fff3d6;color:#8a5a12}
+.badge.ok{background:#e2f3e5;color:#1d6b2f}
+.badge.can{background:#f3e2e2;color:#a33}
+.resv-actions{display:flex;gap:4px;flex-shrink:0}
+.resv-actions button{min-height:30px;padding:5px 9px;font-size:12px;border-radius:9px}
+.resv-info{min-width:0}
+.resv-info .rname{font-weight:700}
 </style>
 </head>
 <body>
@@ -87,6 +95,24 @@ li .m{color:#5b6b63;font-size:12px}
 </div>
 </div>
 <div class="card">
+<h2>Reservaciones <span class="small" id="resvCount"></span></h2>
+<div class="row">
+<input type="text" id="resvName" placeholder="Nombre del cliente" autocomplete="off">
+<input type="tel" id="resvPhone" placeholder="Teléfono (opcional)" inputmode="tel" autocomplete="off">
+</div>
+<div class="row">
+<input type="date" id="resvDate">
+<input type="time" id="resvTime">
+</div>
+<div class="row">
+<select id="resvService"></select>
+<button id="resvBtn">Agregar</button>
+</div>
+<ul id="resvList"></ul>
+<p class="small" id="resvEmpty">Sin reservaciones todavía.</p>
+<p class="small" style="margin-top:8px">Al marcar una reservación como atendida, el lavado se suma a las ventas de ese día.</p>
+</div>
+<div class="card">
 <h2>Movimientos del día</h2>
 <ul id="movList"></ul>
 <p class="small" id="movEmpty">Sin movimientos todavía.</p>
@@ -132,11 +158,13 @@ function seed(){
     {type:'sale',label:'Auto compacto Completo',amt:150},
     {type:'expense',label:'Gasolina',amt:50}
    ]
-  }
+  },
+  reservations:[]
  };
 }
 let data;
 try{ data=JSON.parse(localStorage.getItem(KEY))||seed(); }catch(e){ data=seed(); }
+if(!data.reservations) data.reservations=[];
 function save(){ localStorage.setItem(KEY,JSON.stringify(data)); }
 function fmt(n){ return '$'+Number(n).toFixed(2).replace(/\.00$/,''); }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -151,6 +179,14 @@ PRICES.forEach(p=>{
  b.onclick=()=>{ addMove({type:'sale',label:p.label,amt:p.amt}); };
  washBtns.appendChild(b);
 });
+const resvService=document.getElementById('resvService');
+PRICES.forEach(p=>{
+ const o=document.createElement('option');
+ o.value=p.label+'|'+p.amt;
+ o.textContent=p.label+' $'+p.amt;
+ resvService.appendChild(o);
+});
+document.getElementById('resvDate').value=todayStr();
 function addMove(m){
  if(!data.days[curDay]) data.days[curDay]=[];
  data.days[curDay].push(m); save(); render();
@@ -167,6 +203,65 @@ document.getElementById('expBtn').onclick=()=>{
  addMove({type:'expense',label:document.getElementById('expCat').value,amt:v});
  document.getElementById('expAmt').value='';
 };
+document.getElementById('resvBtn').onclick=()=>{
+ const name=document.getElementById('resvName').value.trim();
+ const date=document.getElementById('resvDate').value;
+ const time=document.getElementById('resvTime').value;
+ if(!name||!date||!time){ alert('Falta el nombre, la fecha o la hora de la reservación.'); return; }
+ const parts=resvService.value.split('|');
+ data.reservations.push({
+  id:Date.now(),
+  name:name,
+  phone:document.getElementById('resvPhone').value.trim(),
+  date:date,
+  time:time,
+  service:parts[0],
+  amt:parseFloat(parts[1]),
+  status:'pend'
+ });
+ save(); render();
+ document.getElementById('resvName').value='';
+ document.getElementById('resvPhone').value='';
+ document.getElementById('resvTime').value='';
+};
+function resvStatusLabel(s){
+ return s==='pend'?'Pendiente':(s==='ok'?'Atendida':'Cancelada');
+}
+function renderResv(){
+ const ul=document.getElementById('resvList'); ul.innerHTML='';
+ const sorted=data.reservations.slice().sort((a,b)=>{
+  const pa=a.status==='pend'?0:1, pb=b.status==='pend'?0:1;
+  if(pa!==pb) return pa-pb;
+  return (a.date+' '+a.time).localeCompare(b.date+' '+b.time);
+ });
+ const pend=data.reservations.filter(r=>r.status==='pend').length;
+ document.getElementById('resvCount').textContent=pend?('· '+pend+' pendiente'+(pend>1?'s':'')):'';
+ document.getElementById('resvEmpty').style.display=sorted.length?'none':'block';
+ sorted.forEach(r=>{
+  const li=document.createElement('li');
+  const badgeCls=r.status==='pend'?'pend':(r.status==='ok'?'ok':'can');
+  li.innerHTML='<div class="resv-info"><div class="rname">'+r.name+' <span class="badge '+badgeCls+'">'+resvStatusLabel(r.status)+'</span></div><div class="m">'+prettyDay(r.date)+' '+r.time+' · '+r.service+' '+fmt(r.amt)+(r.phone?' · '+r.phone:'')+'</div></div><div class="resv-actions">'+(r.status==='pend'?'<button data-act="ok" data-id="'+r.id+'">Atendida</button><button class="sec" data-act="can" data-id="'+r.id+'">Cancelar</button>':'')+'<button class="sec" data-act="del" data-id="'+r.id+'">Borrar</button></div>';
+  ul.appendChild(li);
+ });
+ ul.querySelectorAll('button[data-act]').forEach(b=>{
+  b.onclick=()=>{
+   const id=parseInt(b.dataset.id,10);
+   const r=data.reservations.find(x=>x.id===id);
+   if(!r) return;
+   const act=b.dataset.act;
+   if(act==='ok'){
+    r.status='ok';
+    if(!data.days[r.date]) data.days[r.date]=[];
+    data.days[r.date].push({type:'sale',label:'Reservación: '+r.name+' — '+r.service,amt:r.amt});
+   } else if(act==='can'){
+    r.status='can';
+   } else {
+    data.reservations=data.reservations.filter(x=>x.id!==id);
+   }
+   save(); render();
+  };
+ });
+}
 document.getElementById('prevDay').onclick=()=>{ curDay=shiftDay(curDay,-1); if(!data.days[curDay]) data.days[curDay]=[]; render(); };
 document.getElementById('nextDay').onclick=()=>{ curDay=shiftDay(curDay,1); if(!data.days[curDay]) data.days[curDay]=[]; render(); };
 document.getElementById('resetBtn').onclick=()=>{
@@ -175,6 +270,9 @@ document.getElementById('resetBtn').onclick=()=>{
 document.getElementById('csvBtn').onclick=()=>{
  let rows=['fecha,tipo,concepto,monto'];
  Object.keys(data.days).sort().forEach(d=>{ data.days[d].forEach(m=>{ rows.push(d+','+m.type+','+m.label+','+m.amt); }); });
+ rows.push('');
+ rows.push('fecha,hora,cliente,telefono,servicio,monto,estado');
+ data.reservations.slice().sort((a,b)=>(a.date+' '+a.time).localeCompare(b.date+' '+b.time)).forEach(r=>{ rows.push(r.date+','+r.time+','+r.name+','+(r.phone||'')+','+r.service+','+r.amt+','+resvStatusLabel(r.status)); });
  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='al-tiro-ventas.csv'; a.click();
 };
@@ -202,6 +300,7 @@ function render(){
  Object.values(data.days).forEach(ms=>{ gd++; ms.forEach(m=>{ if(m.type==='sale') gv+=m.amt; else gg+=m.amt; }); });
  document.getElementById('gVend').textContent=fmt(gv);
  document.getElementById('gNeto').textContent=fmt(gv-gv*data.commission-gg-gd*RENT_DAILY);
+ renderResv();
 }
 render();
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
