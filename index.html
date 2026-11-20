@@ -308,7 +308,7 @@ function render(){
  document.getElementById('tNeto').textContent=fmt(neto);
  document.getElementById('tGasto').textContent=(gasto?('Gastos del día: '+fmt(gasto)+' · '):'')+'Renta del día: '+fmt(RENT_DAILY);
  let gv=0,gg=0,gd=0;
- Object.values(data.days).forEach(ms=>{ gd++; ms.forEach(m=>{ if(m.type==='sale') gv+=m.amt; else gg+=m.amt; }); });
+ Object.values(data.days).forEach(ms=>{ if(!ms.length) return; gd++; ms.forEach(m=>{ if(m.type==='sale') gv+=m.amt; else gg+=m.amt; }); });
  document.getElementById('gVend').textContent=fmt(gv);
  document.getElementById('gNeto').textContent=fmt(gv-gv*data.commission-gg-gd*RENT_DAILY);
  renderResv();
