@@ -108,6 +108,9 @@ li .m{color:#5b6b63;font-size:12px}
 <select id="resvService"></select>
 <button id="resvBtn">Agregar</button>
 </div>
+<div class="row">
+<button class="sec" id="resvFilterBtn" style="flex:1">Ver mis citas</button>
+</div>
 <ul id="resvList"></ul>
 <p class="small" id="resvEmpty">Sin reservaciones todavía.</p>
 <p class="small" style="margin-top:8px">Al marcar una reservación como atendida, el lavado se suma a las ventas de ese día.</p>
@@ -224,18 +227,26 @@ document.getElementById('resvBtn').onclick=()=>{
  document.getElementById('resvPhone').value='';
  document.getElementById('resvTime').value='';
 };
+let resvOnlyPend=false;
+document.getElementById('resvFilterBtn').onclick=()=>{
+ resvOnlyPend=!resvOnlyPend;
+ renderResv();
+};
 function resvStatusLabel(s){
  return s==='pend'?'Pendiente':(s==='ok'?'Atendida':'Cancelada');
 }
 function renderResv(){
  const ul=document.getElementById('resvList'); ul.innerHTML='';
- const sorted=data.reservations.slice().sort((a,b)=>{
+ let sorted=data.reservations.slice().sort((a,b)=>{
   const pa=a.status==='pend'?0:1, pb=b.status==='pend'?0:1;
   if(pa!==pb) return pa-pb;
   return (a.date+' '+a.time).localeCompare(b.date+' '+b.time);
  });
+ if(resvOnlyPend) sorted=sorted.filter(r=>r.status==='pend');
  const pend=data.reservations.filter(r=>r.status==='pend').length;
  document.getElementById('resvCount').textContent=pend?('· '+pend+' pendiente'+(pend>1?'s':'')):'';
+ document.getElementById('resvFilterBtn').textContent=resvOnlyPend?'Ver todas':'Ver mis citas';
+ document.getElementById('resvEmpty').textContent=resvOnlyPend?'Sin citas pendientes.':'Sin reservaciones todavía.';
  document.getElementById('resvEmpty').style.display=sorted.length?'none':'block';
  sorted.forEach(r=>{
   const li=document.createElement('li');
