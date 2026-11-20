@@ -1,19 +1,15 @@
-const CACHE='altiro-pwa-v5';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
-self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
+// Al Tiro Control v6: SIN caché.
+// El caché del service worker dejaba la app atorada en el logo una y otra vez
+// (17-nov, 18-nov y 20-nov). Ahora la app siempre carga fresca desde internet
+// y al activarse este worker borra todos los cachés viejos del teléfono.
+// Sin fetch handler: nada se guarda en caché, todo va directo a internet.
+self.addEventListener('install', (e) => {
+  e.waitUntil(self.skipWaiting());
 });
-self.addEventListener('activate',e=>{
-  e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
-});
-self.addEventListener('fetch',e=>{
-  if(e.request.mode==='navigate'){
-    e.respondWith(fetch(e.request).then(r=>{
-      const copy=r.clone();
-      caches.open(CACHE).then(c=>c.put(e.request,copy));
-      return r;
-    }).catch(()=>caches.match(e.request)));
-  }else{
-    e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
-  }
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
 });
